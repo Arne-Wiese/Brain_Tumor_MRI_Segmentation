@@ -1,0 +1,48 @@
+================================================================================
+BRAIN TUMOR SEGMENTATION - 2D U-NET RESULTS SUMMARY
+================================================================================
+
+DATASET:
+  Total patients:     369
+  Train patients:     258 (69.9%)
+  Val patients:       55 (14.9%)
+  Test patients:      56 (15.2%)
+  Train slices:       17071
+  Val slices:         3681
+  Test slices:        3670
+
+MODEL ARCHITECTURE:
+  Architecture:       2D U-Net
+  Input channels:     4 (T1, T1ce, T2, FLAIR)
+  Output classes:     4 (Background, NCR/NET, Edema, Enhancing)
+  Total parameters:   31,038,404
+  Trainable params:   31,038,404
+  Model size:         118.40 MB
+
+TRAINING CONFIGURATION:
+  Loss function:      Combined (CE: 0.4 + Dice: 0.6)
+  Optimizer:          Adam (lr=0.0001, wd=1e-05)
+  Batch size:         8
+  Total epochs:       20
+  Training time:      37.00 hours
+
+TRAINING RESULTS:
+  Best val Dice:      0.7697 (Epoch 9)
+  Best val IoU:       0.6272
+  Final train loss:   0.1314
+  Final val loss:     0.1780
+
+TEST SET RESULTS:
+  Mean Dice:          0.7751
+  Mean IoU:           0.6376
+  Overall Accuracy:   0.9911
+
+  Per-Class Test Results:
+    Class                     Dice       IoU       
+    --------------------------------------------------
+    Background                0.9972     0.9944    
+    NCR/NET (Necrotic)        0.6929     0.5301    
+    Edema                     0.7764     0.6345    
+    Enhancing Tumor           0.8561     0.7483    
+
+================================================================================
