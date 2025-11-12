@@ -3,3 +3,4 @@
 3d/.venv
 .DS_Store
 *.pth
+__pycache__/
