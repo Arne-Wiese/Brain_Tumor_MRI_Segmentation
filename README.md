@@ -5,7 +5,7 @@
 
 ---
 
-## 🧠 Purpose
+## Purpose
 
 The goal of this project is to develop and evaluate deep learning models for **automated segmentation of brain tumors in MRI scans**.  
 Accurate tumor segmentation is critical for **diagnosis**, **treatment planning**, and **prognosis** in neuro-oncology.
@@ -15,9 +15,9 @@ As an optional extension, we will investigate using segmentation outputs for **p
 
 ---
 
-## 📚 Dataset
+## Dataset
 
-We use the **BraTS 2020 dataset** ([Kaggle link](https://www.kaggle.com/)), which contains **multimodal MRI scans** and **expert-annotated tumor segmentation masks** for 369 patients.
+We use the **BraTS 2020 dataset** ([Kaggle link](https://www.kaggle.com/datasets/awsaf49/brats20-dataset-training-validation)), which contains **multimodal MRI scans** and **expert-annotated tumor segmentation masks** for 369 patients.
 
 Each patient includes:
 
@@ -27,11 +27,11 @@ Each patient includes:
   - 0 → Background
   - 1 → Necrotic/non-enhancing tumor
   - 2 → Edema
-  - 3 → Enhancing tumor
+  - 4 → Enhancing tumor
 
 ---
 
-## ⚙️ Methods
+## Methods
 
 ### **Baseline**
 
@@ -55,7 +55,7 @@ Each patient includes:
 
 ---
 
-## 🔬 Planned Experiments
+## Planned Experiments
 
 1. Compare **2D vs. 3D U-Net** architectures for tumor segmentation
 2. Test **2.5D** and **multi-view ensemble** strategies to enhance 2D performance
@@ -64,7 +64,7 @@ Each patient includes:
 
 ---
 
-## 📖 Key References
+## Key References
 
 - Menze et al., _The Multimodal Brain Tumor Image Segmentation Benchmark (BRATS)_, **IEEE TMI**, 2015.  
   DOI: [10.1109/TMI.2014.2377694](https://doi.org/10.1109/TMI.2014.2377694)
