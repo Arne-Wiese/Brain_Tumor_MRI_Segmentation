@@ -58,7 +58,7 @@ class BraTSDataset_25D(Dataset):
         for modality in modalities:
             file_path = os.path.join(
                 patient_path, f"{patient_id}_{modality}.nii")
-            volume = nib.load(file_path).get_fdata()
+            volume = nib.load(file_path).get_fdata()  # type: ignore
 
             # Collect n_slices around the center slice
             slices_to_aggregate = []
@@ -77,7 +77,7 @@ class BraTSDataset_25D(Dataset):
 
         # Load segmentation mask (only the center slice)
         seg_path = os.path.join(patient_path, f"{patient_id}_seg.nii")
-        seg_volume = nib.load(seg_path).get_fdata()
+        seg_volume = nib.load(seg_path).get_fdata()  # type: ignore
         mask = seg_volume[:, :, slice_idx]
 
         # Convert labels: 0->0, 1->1, 2->2, 4->3 (to have consecutive labels)
