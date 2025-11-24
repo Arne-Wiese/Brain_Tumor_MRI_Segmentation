@@ -109,7 +109,7 @@ def validate(model, dataloader, criterion, device, metric_fns=None):
 def train_loop(model, train_loader, val_loader, criterion, optimizer,
                num_epochs, device, scheduler=None, metric_fns=None,
                save_best_model=True, model_save_path='best_model.pth',
-               early_stopping_patience=None, verbose=True, primary_metric=None):
+               early_stopping_patience=None, primary_metric=None):
     """
     Generic training loop with validation.
 
@@ -126,7 +126,6 @@ def train_loop(model, train_loader, val_loader, criterion, optimizer,
         save_best_model: Whether to save the best model based on validation metric
         model_save_path: Path to save the best model
         early_stopping_patience: Stop training if validation doesn't improve for N epochs
-        verbose: Whether to print training progress
         primary_metric: Name of the primary metric to use for model selection (if None, uses first metric or loss)
 
     Returns:
@@ -156,35 +155,15 @@ def train_loop(model, train_loader, val_loader, criterion, optimizer,
     epochs_without_improvement = 0
 
     for epoch in range(num_epochs):
-        if verbose:
-            print(f"\nEpoch {epoch+1}/{num_epochs}")
-            print("-" * 50)
-
         # Training
         train_loss, train_metrics = train_one_epoch(
             model, train_loader, criterion, optimizer, device, metric_fns
         )
 
-        if verbose:
-            metrics_str = ", ".join(
-                [f"{name}: {value:.4f}" for name, value in train_metrics.items()]) if train_metrics else ""
-            if metrics_str:
-                print(f"Train Loss: {train_loss:.4f}, {metrics_str}")
-            else:
-                print(f"Train Loss: {train_loss:.4f}")
-
         # Validation
         val_loss, val_metrics = validate(
             model, val_loader, criterion, device, metric_fns
         )
-
-        if verbose:
-            metrics_str = ", ".join(
-                [f"{name}: {value:.4f}" for name, value in val_metrics.items()]) if val_metrics else ""
-            if metrics_str:
-                print(f"Val Loss: {val_loss:.4f}, {metrics_str}")
-            else:
-                print(f"Val Loss: {val_loss:.4f}")
 
         # Store metrics
         history['train_loss'].append(train_loss)
@@ -232,14 +211,6 @@ def train_loop(model, train_loader, val_loader, criterion, optimizer,
 
                 torch.save(checkpoint, model_save_path)
 
-                if verbose:
-                    if primary_metric is not None:
-                        print(
-                            f"✓ Saved new best model with Val {primary_metric}: {current_val_metric:.4f}")
-                    else:
-                        print(
-                            f"✓ Saved new best model with Val Loss: {val_loss:.4f}")
-
                 epochs_without_improvement = 0
             else:
                 epochs_without_improvement += 1
@@ -247,15 +218,7 @@ def train_loop(model, train_loader, val_loader, criterion, optimizer,
         # Early stopping
         if early_stopping_patience is not None:
             if epochs_without_improvement >= early_stopping_patience:
-                if verbose:
-                    print(f"\nEarly stopping triggered after {epoch+1} epochs")
                 break
-
-    if verbose:
-        print("\nTraining completed!")
-        if primary_metric is not None:
-            print(f"Best validation {primary_metric}: {best_val_metric:.4f}")
-        print(f"Best validation loss: {best_val_loss:.4f}")
 
     return history
 
