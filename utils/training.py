@@ -7,7 +7,7 @@ from tqdm import tqdm
 import numpy as np
 
 
-def train_one_epoch(model, dataloader, criterion, optimizer, device, metric_fn=None):
+def train_one_epoch(model, dataloader, criterion, optimizer, device, metric_fns=None):
     """
     Train the model for one epoch.
 
@@ -17,15 +17,16 @@ def train_one_epoch(model, dataloader, criterion, optimizer, device, metric_fn=N
         criterion: Loss function
         optimizer: Optimizer
         device: Device to train on (cpu/cuda/mps)
-        metric_fn: Optional metric function that takes (predictions, targets)
+        metric_fns: Optional dict of metric functions {name: function} that take (predictions, targets)
 
     Returns:
         epoch_loss: Average loss for the epoch
-        epoch_metric: Average metric for the epoch (if metric_fn provided)
+        epoch_metrics: Dict of average metrics for the epoch (if metric_fns provided)
     """
     model.train()
     running_loss = 0.0
-    running_metric = 0.0
+    running_metrics = {name: 0.0 for name in metric_fns.keys()} if metric_fns else {
+    }
 
     pbar = tqdm(dataloader, desc="Training", leave=False)
     for batch_idx, (images, masks) in enumerate(pbar):
@@ -43,21 +44,22 @@ def train_one_epoch(model, dataloader, criterion, optimizer, device, metric_fn=N
 
         # Metrics
         running_loss += loss.item()
-        if metric_fn is not None:
-            metric_value = metric_fn(outputs, masks)
-            running_metric += metric_value
+        if metric_fns is not None:
+            for name, metric_fn in metric_fns.items():
+                metric_value = metric_fn(outputs, masks)
+                running_metrics[name] += metric_value
 
         # Update progress bar
         pbar.set_postfix({'loss': f'{loss.item():.4f}'})
 
     epoch_loss = running_loss / len(dataloader)
-    epoch_metric = running_metric / \
-        len(dataloader) if metric_fn is not None else None
+    epoch_metrics = {name: value / len(dataloader) for name,
+                     value in running_metrics.items()} if metric_fns else None
 
-    return epoch_loss, epoch_metric
+    return epoch_loss, epoch_metrics
 
 
-def validate(model, dataloader, criterion, device, metric_fn=None):
+def validate(model, dataloader, criterion, device, metric_fns=None):
     """
     Validate the model.
 
@@ -66,15 +68,16 @@ def validate(model, dataloader, criterion, device, metric_fn=None):
         dataloader: Validation DataLoader
         criterion: Loss function
         device: Device to run on (cpu/cuda/mps)
-        metric_fn: Optional metric function that takes (predictions, targets)
+        metric_fns: Optional dict of metric functions {name: function} that take (predictions, targets)
 
     Returns:
         epoch_loss: Average loss for the epoch
-        epoch_metric: Average metric for the epoch (if metric_fn provided)
+        epoch_metrics: Dict of average metrics for the epoch (if metric_fns provided)
     """
     model.eval()
     running_loss = 0.0
-    running_metric = 0.0
+    running_metrics = {name: 0.0 for name in metric_fns.keys()} if metric_fns else {
+    }
 
     with torch.no_grad():
         pbar = tqdm(dataloader, desc="Validation", leave=False)
@@ -88,24 +91,25 @@ def validate(model, dataloader, criterion, device, metric_fn=None):
 
             # Metrics
             running_loss += loss.item()
-            if metric_fn is not None:
-                metric_value = metric_fn(outputs, masks)
-                running_metric += metric_value
+            if metric_fns is not None:
+                for name, metric_fn in metric_fns.items():
+                    metric_value = metric_fn(outputs, masks)
+                    running_metrics[name] += metric_value
 
             # Update progress bar
             pbar.set_postfix({'loss': f'{loss.item():.4f}'})
 
     epoch_loss = running_loss / len(dataloader)
-    epoch_metric = running_metric / \
-        len(dataloader) if metric_fn is not None else None
+    epoch_metrics = {name: value / len(dataloader) for name,
+                     value in running_metrics.items()} if metric_fns else None
 
-    return epoch_loss, epoch_metric
+    return epoch_loss, epoch_metrics
 
 
 def train_loop(model, train_loader, val_loader, criterion, optimizer,
-               num_epochs, device, scheduler=None, metric_fn=None,
+               num_epochs, device, scheduler=None, metric_fns=None,
                save_best_model=True, model_save_path='best_model.pth',
-               early_stopping_patience=None, verbose=True):
+               early_stopping_patience=None, verbose=True, primary_metric=None):
     """
     Generic training loop with validation.
 
@@ -118,27 +122,36 @@ def train_loop(model, train_loader, val_loader, criterion, optimizer,
         num_epochs: Number of epochs to train
         device: Device to train on (cpu/cuda/mps)
         scheduler: Optional learning rate scheduler
-        metric_fn: Optional metric function for evaluation
+        metric_fns: Optional dict of metric functions {name: function} for evaluation
         save_best_model: Whether to save the best model based on validation metric
         model_save_path: Path to save the best model
         early_stopping_patience: Stop training if validation doesn't improve for N epochs
         verbose: Whether to print training progress
+        primary_metric: Name of the primary metric to use for model selection (if None, uses first metric or loss)
 
     Returns:
         history: Dictionary containing training history
             - 'train_loss': List of training losses
-            - 'train_metric': List of training metrics
+            - 'train_{metric_name}': List of training metrics for each metric
             - 'val_loss': List of validation losses
-            - 'val_metric': List of validation metrics
+            - 'val_{metric_name}': List of validation metrics for each metric
     """
-    history = {
-        'train_loss': [],
-        'train_metric': [],
-        'val_loss': [],
-        'val_metric': []
-    }
+    # Initialize history with loss and all metrics
+    history = {'train_loss': [], 'val_loss': []}
+    if metric_fns is not None:
+        for name in metric_fns.keys():
+            history[f'train_{name}'] = []
+            history[f'val_{name}'] = []
 
-    best_val_metric = 0.0 if metric_fn is not None else float('inf')
+    # Determine primary metric for model selection
+    if metric_fns is not None:
+        if primary_metric is None:
+            primary_metric = list(metric_fns.keys())[0]
+        best_val_metric = 0.0 if metric_fns else float('inf')
+    else:
+        primary_metric = None
+        best_val_metric = float('inf')
+
     best_val_loss = float('inf')
     epochs_without_improvement = 0
 
@@ -148,34 +161,40 @@ def train_loop(model, train_loader, val_loader, criterion, optimizer,
             print("-" * 50)
 
         # Training
-        train_loss, train_metric = train_one_epoch(
-            model, train_loader, criterion, optimizer, device, metric_fn
+        train_loss, train_metrics = train_one_epoch(
+            model, train_loader, criterion, optimizer, device, metric_fns
         )
 
         if verbose:
-            if train_metric is not None:
-                print(
-                    f"Train Loss: {train_loss:.4f}, Train Metric: {train_metric:.4f}")
+            metrics_str = ", ".join(
+                [f"{name}: {value:.4f}" for name, value in train_metrics.items()]) if train_metrics else ""
+            if metrics_str:
+                print(f"Train Loss: {train_loss:.4f}, {metrics_str}")
             else:
                 print(f"Train Loss: {train_loss:.4f}")
 
         # Validation
-        val_loss, val_metric = validate(
-            model, val_loader, criterion, device, metric_fn
+        val_loss, val_metrics = validate(
+            model, val_loader, criterion, device, metric_fns
         )
 
         if verbose:
-            if val_metric is not None:
-                print(
-                    f"Val Loss: {val_loss:.4f}, Val Metric: {val_metric:.4f}")
+            metrics_str = ", ".join(
+                [f"{name}: {value:.4f}" for name, value in val_metrics.items()]) if val_metrics else ""
+            if metrics_str:
+                print(f"Val Loss: {val_loss:.4f}, {metrics_str}")
             else:
                 print(f"Val Loss: {val_loss:.4f}")
 
         # Store metrics
         history['train_loss'].append(train_loss)
-        history['train_metric'].append(train_metric)
         history['val_loss'].append(val_loss)
-        history['val_metric'].append(val_metric)
+        if train_metrics is not None:
+            for name, value in train_metrics.items():
+                history[f'train_{name}'].append(value)
+        if val_metrics is not None:
+            for name, value in val_metrics.items():
+                history[f'val_{name}'].append(value)
 
         # Learning rate scheduling
         if scheduler is not None:
@@ -186,29 +205,37 @@ def train_loop(model, train_loader, val_loader, criterion, optimizer,
 
         # Save best model
         if save_best_model:
-            # Use metric if available, otherwise use loss
-            if metric_fn is not None:
-                improved = val_metric > best_val_metric
+            # Use primary metric if available, otherwise use loss
+            if primary_metric is not None and val_metrics is not None:
+                current_val_metric = val_metrics[primary_metric]
+                improved = current_val_metric > best_val_metric
                 if improved:
-                    best_val_metric = val_metric
+                    best_val_metric = current_val_metric
             else:
                 improved = val_loss < best_val_loss
-                if improved:
-                    best_val_loss = val_loss
+                current_val_metric = None
 
             if improved:
-                torch.save({
+                best_val_loss = val_loss
+
+            if improved:
+                # Save checkpoint with all metrics
+                checkpoint = {
                     'epoch': epoch,
                     'model_state_dict': model.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
                     'val_loss': val_loss,
-                    'val_metric': val_metric,
-                }, model_save_path)
+                }
+                if val_metrics is not None:
+                    for name, value in val_metrics.items():
+                        checkpoint[f'val_{name}'] = value
+
+                torch.save(checkpoint, model_save_path)
 
                 if verbose:
-                    if metric_fn is not None:
+                    if primary_metric is not None:
                         print(
-                            f"✓ Saved new best model with Val Metric: {val_metric:.4f}")
+                            f"✓ Saved new best model with Val {primary_metric}: {current_val_metric:.4f}")
                     else:
                         print(
                             f"✓ Saved new best model with Val Loss: {val_loss:.4f}")
@@ -226,8 +253,8 @@ def train_loop(model, train_loader, val_loader, criterion, optimizer,
 
     if verbose:
         print("\nTraining completed!")
-        if metric_fn is not None:
-            print(f"Best validation metric: {best_val_metric:.4f}")
+        if primary_metric is not None:
+            print(f"Best validation {primary_metric}: {best_val_metric:.4f}")
         print(f"Best validation loss: {best_val_loss:.4f}")
 
     return history
@@ -244,8 +271,12 @@ def load_checkpoint(model, checkpoint_path, optimizer=None, device='cpu'):
         device: Device to load the model on
 
     Returns:
-        epoch: Epoch number from checkpoint
-        val_metric: Validation metric from checkpoint
+        checkpoint: Dictionary containing all checkpoint data
+            - 'epoch': Epoch number from checkpoint
+            - 'val_metric': Validation metric from checkpoint
+            - 'val_loss': Validation loss from checkpoint
+            - 'model_state_dict': Model state dictionary
+            - 'optimizer_state_dict': Optimizer state dictionary (if present)
     """
     # Set weights_only=False to load full checkpoint with optimizer state and metrics
     checkpoint = torch.load(
@@ -255,7 +286,4 @@ def load_checkpoint(model, checkpoint_path, optimizer=None, device='cpu'):
     if optimizer is not None and 'optimizer_state_dict' in checkpoint:
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
-    epoch = checkpoint.get('epoch', 0)
-    val_metric = checkpoint.get('val_metric', None)
-
-    return epoch, val_metric
+    return checkpoint
