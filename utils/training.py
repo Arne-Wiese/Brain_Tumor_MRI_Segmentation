@@ -5,6 +5,7 @@ Generic training loop for brain tumor segmentation.
 import torch
 from tqdm import tqdm
 import numpy as np
+import time
 
 
 def train_one_epoch(model, dataloader, criterion, optimizer, device, metric_fns=None):
@@ -136,7 +137,8 @@ def train_loop(model, train_loader, val_loader, criterion, optimizer,
             - 'val_{metric_name}': List of validation metrics for each metric
     """
     # Initialize history with loss and all metrics
-    history = {'train_loss': [], 'val_loss': []}
+    history = {'train_loss': [], 'val_loss': [],
+               'epoch_train_times': [], 'learning_rates': []}
     if metric_fns is not None:
         for name in metric_fns.keys():
             history[f'train_{name}'] = []
@@ -155,7 +157,14 @@ def train_loop(model, train_loader, val_loader, criterion, optimizer,
     epochs_without_improvement = 0
 
     for epoch in range(num_epochs):
+        # Get current learning rate
+        current_lr = optimizer.param_groups[0]['lr']
+        history['learning_rates'].append(current_lr)
+
         print(f"Epoch {epoch + 1}/{num_epochs}")
+
+        # start time measurement
+        epoch_start_time = time.time()
         # Training
         train_loss, train_metrics = train_one_epoch(
             model, train_loader, criterion, optimizer, device, metric_fns
@@ -165,6 +174,8 @@ def train_loop(model, train_loader, val_loader, criterion, optimizer,
         val_loss, val_metrics = validate(
             model, val_loader, criterion, device, metric_fns
         )
+        epoch_time = time.time() - epoch_start_time
+        history['epoch_train_times'].append(epoch_time)
 
         # Store metrics
         history['train_loss'].append(train_loss)
@@ -175,6 +186,8 @@ def train_loop(model, train_loader, val_loader, criterion, optimizer,
         if val_metrics is not None:
             for name, value in val_metrics.items():
                 history[f'val_{name}'].append(value)
+
+        print(f"  Epoch Time: {epoch_time:.2f}s")
 
         # Learning rate scheduling
         if scheduler is not None:
@@ -205,6 +218,7 @@ def train_loop(model, train_loader, val_loader, criterion, optimizer,
                     'model_state_dict': model.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
                     'val_loss': val_loss,
+                    'learning_rate': current_lr,
                 }
                 if val_metrics is not None:
                     for name, value in val_metrics.items():

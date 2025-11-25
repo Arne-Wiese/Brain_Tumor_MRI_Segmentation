@@ -7,6 +7,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
+import json
 
 
 def visualize_predictions(model, dataloader, device, num_samples=3, save_path=None):
@@ -231,7 +232,7 @@ def plot_detailed_training_history(history, save_path=None):
     plt.show()
 
     # Print summary statistics
-    if 'epoch_times' in history:
+    if 'epoch_train_times' in history:
         print("\n" + "="*80)
         print("TRAINING SUMMARY")
         print("="*80)
@@ -243,9 +244,9 @@ def plot_detailed_training_history(history, save_path=None):
             f"Best validation loss:  {min(history['val_loss']):.4f} (Epoch {np.argmin(history['val_loss']) + 1})")
         print(f"Final validation loss: {history['val_loss'][-1]:.4f}")
         print(
-            f"Total training time:   {sum(history['epoch_times'])/3600:.2f} hours")
+            f"Total training time:   {sum(history['epoch_train_times'])/3600:.2f} hours")
         print(
-            f"Avg time per epoch:    {np.mean(history['epoch_times'])/60:.2f} minutes")
+            f"Avg time per epoch:    {np.mean(history['epoch_train_times'])/60:.2f} minutes")
         print("="*80)
 
 
@@ -314,3 +315,89 @@ def visualize_sample_with_overlay(image, mask=None, prediction=None, alpha=0.4, 
         print(f"✓ Saved overlay visualization to {save_path}")
 
     plt.show()
+
+
+def history_to_json(history, model_name, save_dir='logs', **kwargs):
+    """
+    Save training history to a JSON file.
+
+    Args:
+        history: Dictionary containing training history
+            - 'train_loss': List of training losses
+            - 'val_loss': List of validation losses
+            - 'train_{metric}': List of training metrics
+            - 'val_{metric}': List of validation metrics
+            - 'epoch_train_times': List of epoch times in seconds
+            - 'learning_rates': List of learning rates
+        model_name: Name of the model (used for filename)
+        save_dir: Directory to save the JSON file (default: 'logs')
+        **kwargs: Additional parameters to save (e.g., batch_size, num_slices, slice_range, etc.)
+
+    Returns:
+        save_path: Path where the JSON file was saved
+    """
+    # Create directory if it doesn't exist
+    os.makedirs(save_dir, exist_ok=True)
+
+    # Create filename from model name
+    json_filename = f"{model_name.replace('.pth', '')}_history.json"
+    save_path = os.path.join(save_dir, json_filename)
+
+    # Add summary statistics
+    history_with_stats = history.copy()
+
+    # Calculate total and average epoch time
+    if 'epoch_train_times' in history:
+        total_time = sum(history['epoch_train_times'])
+        avg_time = total_time / \
+            len(history['epoch_train_times']
+                ) if history['epoch_train_times'] else 0
+
+        history_with_stats['summary'] = {
+            'total_epochs': len(history['epoch_train_times']),
+            'total_training_time_seconds': round(total_time, 2),
+            'total_training_time_minutes': round(total_time / 60, 2),
+            'average_epoch_time_seconds': round(avg_time, 2),
+            'best_train_loss': round(min(history['train_loss']), 4) if history['train_loss'] else None,
+            'best_val_loss': round(min(history['val_loss']), 4) if history['val_loss'] else None,
+        }
+
+        # Add learning rate info
+        if 'learning_rates' in history and history['learning_rates']:
+            history_with_stats['summary']['initial_learning_rate'] = history['learning_rates'][0]
+            history_with_stats['summary']['final_learning_rate'] = history['learning_rates'][-1]
+            history_with_stats['summary']['min_learning_rate'] = min(
+                history['learning_rates'])
+
+        # Add best metrics if available
+        for key in history.keys():
+            if key.startswith('val_') and key not in ['val_loss']:
+                metric_name = key.replace('val_', '')
+                history_with_stats['summary'][f'best_val_{metric_name}'] = round(
+                    max(history[key]), 4)
+
+    # Add training configuration parameters
+    if kwargs:
+        history_with_stats['config'] = {}
+        for key, value in kwargs.items():
+            # Convert tuples to lists for JSON serialization
+            if isinstance(value, tuple):
+                history_with_stats['config'][key] = list(value)
+            else:
+                history_with_stats['config'][key] = value
+
+    # Convert to JSON-serializable format (round floats)
+    json_history = {}
+    for key, value in history_with_stats.items():
+        if isinstance(value, list):
+            json_history[key] = [round(v, 6) if isinstance(
+                v, float) else v for v in value]
+        else:
+            json_history[key] = value
+
+    # Save to JSON
+    with open(save_path, 'w') as f:
+        json.dump(json_history, f, indent=4)
+
+    print(f"✓ Saved training history to {save_path}")
+    return save_path

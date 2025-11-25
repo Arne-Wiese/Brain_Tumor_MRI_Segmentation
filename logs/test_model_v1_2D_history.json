@@ -1,0 +1,40 @@
+{
+    "train_loss": [
+        1.0303,
+        0.9118
+    ],
+    "val_loss": [
+        1.0831,
+        0.9916
+    ],
+    "train_dice": [
+        0.3103,
+        0.4827
+    ],
+    "val_dice": [
+        0.5941,
+        0.2581
+    ],
+    "train_iou": [
+        0.2546,
+        0.3952
+    ],
+    "val_iou": [
+        0.5917,
+        0.2505
+    ],
+    "epoch_train_times": [
+        39.6126,
+        41.8484
+    ],
+    "summary": {
+        "total_epochs": 2,
+        "total_training_time_seconds": 81.46,
+        "total_training_time_minutes": 1.36,
+        "average_epoch_time_seconds": 40.73,
+        "best_train_loss": 0.9118,
+        "best_val_loss": 0.9916,
+        "best_val_dice": 0.5941,
+        "best_val_iou": 0.5917
+    }
+}
