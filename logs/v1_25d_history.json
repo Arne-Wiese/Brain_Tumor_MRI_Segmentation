@@ -1,0 +1,52 @@
+{
+    "train_loss": [
+        1.027894
+    ],
+    "val_loss": [
+        1.062648
+    ],
+    "train_dice": [
+        0.352844
+    ],
+    "val_dice": [
+        0.27558
+    ],
+    "train_iou": [
+        0.288331
+    ],
+    "val_iou": [
+        0.271204
+    ],
+    "epoch_train_times": [
+        117.402773
+    ],
+    "learning_rates": [
+        0.0001
+    ],
+    "summary": {
+        "total_epochs": 1,
+        "total_training_time_seconds": 117.4,
+        "total_training_time_minutes": 1.96,
+        "average_epoch_time_seconds": 117.4,
+        "best_train_loss": 1.0279,
+        "best_val_loss": 1.0626,
+        "initial_learning_rate": 0.0001,
+        "final_learning_rate": 0.0001,
+        "min_learning_rate": 0.0001,
+        "best_val_dice": 0.2756,
+        "best_val_iou": 0.2712
+    },
+    "config": {
+        "batch_size": 16,
+        "num_slices": 5,
+        "slice_range": [
+            22,
+            122
+        ],
+        "num_epochs": 1,
+        "optimizer": "Adam",
+        "loss_function": "CombinedLoss",
+        "model_type": "UNet",
+        "dataset_type": "2D"
+    }
+}
