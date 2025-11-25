@@ -9,50 +9,6 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 
 
-def plot_training_history(train_losses, train_metrics, val_losses, val_metrics,
-                          metric_name='Dice Score', save_path=None):
-    """
-    Plot training history (loss and metrics).
-
-    Args:
-        train_losses: List of training losses
-        train_metrics: List of training metrics
-        val_losses: List of validation losses
-        val_metrics: List of validation metrics
-        metric_name: Name of the metric (for labeling)
-        save_path: Optional path to save the figure
-    """
-    fig, axes = plt.subplots(1, 2, figsize=(15, 5))
-
-    # Plot loss
-    axes[0].plot(train_losses, label='Train Loss', marker='o')
-    axes[0].plot(val_losses, label='Val Loss', marker='s')
-    axes[0].set_xlabel('Epoch')
-    axes[0].set_ylabel('Loss')
-    axes[0].set_title('Training and Validation Loss')
-    axes[0].legend()
-    axes[0].grid(True)
-
-    # Plot metric
-    axes[1].plot(train_metrics, label=f'Train {metric_name}', marker='o')
-    axes[1].plot(val_metrics, label=f'Val {metric_name}', marker='s')
-    axes[1].set_xlabel('Epoch')
-    axes[1].set_ylabel(metric_name)
-    axes[1].set_title(f'Training and Validation {metric_name}')
-    axes[1].legend()
-    axes[1].grid(True)
-
-    plt.tight_layout()
-
-    if save_path:
-        # Create directory if it doesn't exist
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        print(f"✓ Saved training history to {save_path}")
-
-    plt.show()
-
-
 def visualize_predictions(model, dataloader, device, num_samples=3, save_path=None):
     """
     Visualize predictions from the model.
@@ -73,7 +29,7 @@ def visualize_predictions(model, dataloader, device, num_samples=3, save_path=No
     batch_size = images.size(0)
     if num_samples > batch_size:
         num_samples = batch_size
-        print(f"⚠️ Warning: num_samples reduced to {batch_size} (batch size)")
+        print(f"Warning: num_samples reduced to {batch_size} (batch size)")
 
     # Random indices from the batch
     random_indices = torch.randperm(batch_size)[:num_samples]
@@ -88,6 +44,10 @@ def visualize_predictions(model, dataloader, device, num_samples=3, save_path=No
     images = images.cpu().numpy()
     masks = masks.cpu().numpy()
     predictions = predictions.cpu().numpy()
+
+    # Get the actual colors from tab10 colormap
+    tab10 = plt.get_cmap('tab10')
+    colors = [tab10(i) for i in range(13)]
 
     # Plot
     fig, axes = plt.subplots(num_samples, 5, figsize=(20, 4*num_samples))
@@ -121,6 +81,16 @@ def visualize_predictions(model, dataloader, device, num_samples=3, save_path=No
         axes[i, 4].imshow(predictions[i], cmap='tab10', vmin=0, vmax=3)
         axes[i, 4].set_title('Prediction')
         axes[i, 4].axis('off')
+
+     # Add legend with correct tab10 colors
+    legend_elements = [
+        Patch(facecolor=colors[0], label='Background (0)'),
+        Patch(facecolor=colors[3], label='NCR/NET (1)'),
+        Patch(facecolor=colors[6], label='Edema (2)'),
+        Patch(facecolor=colors[12], label='Enhancing Tumor (3)')
+    ]
+    fig.legend(handles=legend_elements, loc='lower center',
+               bbox_to_anchor=(0.5, -0.02), ncol=4, fontsize=10)
 
     plt.tight_layout()
 
@@ -208,28 +178,22 @@ def plot_detailed_training_history(history, save_path=None):
     epochs = range(1, len(history['train_loss']) + 1)
 
     # Plot 1: Loss
-    axes[0].plot(epochs, history['train_loss'], 'b-',
-                 linewidth=2, label='Train Loss')
-    axes[0].plot(epochs, history['val_loss'], 'r-',
-                 linewidth=2, label='Val Loss')
-    axes[0].set_xlabel('Epoch', fontsize=12)
-    axes[0].set_ylabel('Loss', fontsize=12)
-    axes[0].set_title('Training and Validation Loss',
-                      fontsize=14, fontweight='bold')
-    axes[0].legend(fontsize=11)
-    axes[0].grid(True, alpha=0.3)
+    axes[0].plot(epochs, history['train_loss'], label='Train Loss', marker='o')
+    axes[0].plot(epochs, history['val_loss'], label='Val Loss', marker='s')
+    axes[0].set_xlabel('Epoch')
+    axes[0].set_ylabel('Loss')
+    axes[0].set_title('Training and Validation Loss')
+    axes[0].legend()
+    axes[0].grid(True)
 
     # Plot 2: Dice Score
-    axes[1].plot(epochs, history['train_dice'], 'b-',
-                 linewidth=2, label='Train Dice')
-    axes[1].plot(epochs, history['val_dice'], 'r-',
-                 linewidth=2, label='Val Dice')
-    axes[1].set_xlabel('Epoch', fontsize=12)
-    axes[1].set_ylabel('Dice Score', fontsize=12)
-    axes[1].set_title('Training and Validation Dice Score',
-                      fontsize=14, fontweight='bold')
-    axes[1].legend(fontsize=11)
-    axes[1].grid(True, alpha=0.3)
+    axes[1].plot(epochs, history['train_dice'], label='Train Dice', marker='o')
+    axes[1].plot(epochs, history['val_dice'], label='Val Dice', marker='s')
+    axes[1].set_xlabel('Epoch')
+    axes[1].set_ylabel('Dice Score')
+    axes[1].set_title('Training and Validation Dice Score')
+    axes[1].legend()
+    axes[1].grid(True)
     axes[1].set_ylim([0, 1])
 
     plot_idx = 2
@@ -237,27 +201,24 @@ def plot_detailed_training_history(history, save_path=None):
     # Plot 3: IoU (if available)
     if has_iou and len(axes) > 2:
         axes[plot_idx].plot(epochs, history['train_iou'],
-                            'b-', linewidth=2, label='Train IoU')
+                            label='Train IoU', marker='o')
         axes[plot_idx].plot(epochs, history['val_iou'],
-                            'r-', linewidth=2, label='Val IoU')
-        axes[plot_idx].set_xlabel('Epoch', fontsize=12)
-        axes[plot_idx].set_ylabel('IoU', fontsize=12)
-        axes[plot_idx].set_title(
-            'Training and Validation IoU', fontsize=14, fontweight='bold')
-        axes[plot_idx].legend(fontsize=11)
-        axes[plot_idx].grid(True, alpha=0.3)
+                            label='Val IoU', marker='s')
+        axes[plot_idx].set_xlabel('Epoch')
+        axes[plot_idx].set_ylabel('IoU')
+        axes[plot_idx].set_title('Training and Validation IoU')
+        axes[plot_idx].legend()
+        axes[plot_idx].grid(True)
         axes[plot_idx].set_ylim([0, 1])
         plot_idx += 1
 
     # Plot 4: Learning Rate (if available)
     if has_lr and len(axes) > plot_idx:
-        axes[plot_idx].plot(
-            epochs, history['learning_rates'], 'g-', linewidth=2)
-        axes[plot_idx].set_xlabel('Epoch', fontsize=12)
-        axes[plot_idx].set_ylabel('Learning Rate', fontsize=12)
-        axes[plot_idx].set_title(
-            'Learning Rate Schedule', fontsize=14, fontweight='bold')
-        axes[plot_idx].grid(True, alpha=0.3)
+        axes[plot_idx].plot(epochs, history['learning_rates'], marker='o')
+        axes[plot_idx].set_xlabel('Epoch')
+        axes[plot_idx].set_ylabel('Learning Rate')
+        axes[plot_idx].set_title('Learning Rate Schedule')
+        axes[plot_idx].grid(True)
         axes[plot_idx].set_yscale('log')
 
     plt.tight_layout()

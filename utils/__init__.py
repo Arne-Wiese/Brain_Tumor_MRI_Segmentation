@@ -7,7 +7,6 @@ from .datasets import BraTSDataset_25D
 from .metrics import dice_score, iou_score
 from .training import train_loop, train_one_epoch, validate, load_checkpoint
 from .visualizations import (
-    plot_training_history,
     visualize_predictions,
     visualize_single_sample,
     visualize_sample_with_overlay,
@@ -35,7 +34,6 @@ __all__ = [
     'validate',
     'load_checkpoint',
     # Visualizations
-    'plot_training_history',
     'visualize_predictions',
     'visualize_single_sample',
     'visualize_sample_with_overlay',

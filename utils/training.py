@@ -28,7 +28,7 @@ def train_one_epoch(model, dataloader, criterion, optimizer, device, metric_fns=
     running_metrics = {name: 0.0 for name in metric_fns.keys()} if metric_fns else {
     }
 
-    pbar = tqdm(dataloader, desc="Training", leave=False)
+    pbar = tqdm(dataloader, desc="Training")
     for batch_idx, (images, masks) in enumerate(pbar):
         images = images.to(device)
         masks = masks.to(device)
@@ -80,7 +80,7 @@ def validate(model, dataloader, criterion, device, metric_fns=None):
     }
 
     with torch.no_grad():
-        pbar = tqdm(dataloader, desc="Validation", leave=False)
+        pbar = tqdm(dataloader, desc="Validation")
         for images, masks in pbar:
             images = images.to(device)
             masks = masks.to(device)
@@ -155,6 +155,7 @@ def train_loop(model, train_loader, val_loader, criterion, optimizer,
     epochs_without_improvement = 0
 
     for epoch in range(num_epochs):
+        print(f"Epoch {epoch + 1}/{num_epochs}")
         # Training
         train_loss, train_metrics = train_one_epoch(
             model, train_loader, criterion, optimizer, device, metric_fns
