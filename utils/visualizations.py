@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 import json
+import nibabel as nib
 
 
 def visualize_predictions(model, dataloader, device, num_samples=3, save_path=None):
@@ -23,19 +24,20 @@ def visualize_predictions(model, dataloader, device, num_samples=3, save_path=No
     """
     model.eval()
 
-    # Get a batch
-    images, masks = next(iter(dataloader))
+    # Get random samples from the entire dataset
+    dataset = dataloader.dataset
+    random_indices = torch.randperm(len(dataset))[:num_samples]
 
-    # Randomly select samples from the batch
-    batch_size = images.size(0)
-    if num_samples > batch_size:
-        num_samples = batch_size
-        print(f"Warning: num_samples reduced to {batch_size} (batch size)")
+    images_list = []
+    masks_list = []
 
-    # Random indices from the batch
-    random_indices = torch.randperm(batch_size)[:num_samples]
-    images = images[random_indices].to(device)
-    masks = masks[random_indices].to(device)
+    for idx in random_indices:
+        img, mask = dataset[idx]
+        images_list.append(img)
+        masks_list.append(mask)
+
+    images = torch.stack(images_list).to(device)
+    masks = torch.stack(masks_list).to(device)
 
     with torch.no_grad():
         outputs = model(images)
@@ -45,10 +47,6 @@ def visualize_predictions(model, dataloader, device, num_samples=3, save_path=No
     images = images.cpu().numpy()
     masks = masks.cpu().numpy()
     predictions = predictions.cpu().numpy()
-
-    # Get the actual colors from tab10 colormap
-    tab10 = plt.get_cmap('tab10')
-    colors = [tab10(i) for i in range(13)]
 
     # Plot
     fig, axes = plt.subplots(num_samples, 5, figsize=(20, 4*num_samples))
@@ -74,26 +72,27 @@ def visualize_predictions(model, dataloader, device, num_samples=3, save_path=No
         axes[i, 2].axis('off')
 
         # Show ground truth mask
-        axes[i, 3].imshow(masks[i], cmap='tab10', vmin=0, vmax=3)
+        axes[i, 3].imshow(masks[i], cmap='jet', vmin=0, vmax=3)
         axes[i, 3].set_title('Ground Truth')
         axes[i, 3].axis('off')
 
         # Show prediction
-        axes[i, 4].imshow(predictions[i], cmap='tab10', vmin=0, vmax=3)
+        axes[i, 4].imshow(predictions[i], cmap='jet', vmin=0, vmax=3)
         axes[i, 4].set_title('Prediction')
         axes[i, 4].axis('off')
 
      # Add legend with correct tab10 colors
     legend_elements = [
-        Patch(facecolor=colors[0], label='Background (0)'),
-        Patch(facecolor=colors[3], label='NCR/NET (1)'),
-        Patch(facecolor=colors[6], label='Edema (2)'),
-        Patch(facecolor=colors[12], label='Enhancing Tumor (3)')
+        Patch(facecolor='cyan', label='NCR/NET (1)'),
+        Patch(facecolor='yellow', label='Edema (2)'),
+        Patch(facecolor='red', label='Enhancing (3)')
     ]
     fig.legend(handles=legend_elements, loc='lower center',
                bbox_to_anchor=(0.5, -0.02), ncol=4, fontsize=10)
 
     plt.tight_layout()
+    # add title to the figure
+    plt.suptitle('Model Predictions vs Ground Truth', fontsize=16)
 
     if save_path:
         # Create directory if it doesn't exist
@@ -263,49 +262,60 @@ def visualize_sample_with_overlay(image, mask=None, prediction=None, alpha=0.4, 
     """
     modality_names = ['FLAIR', 'T1', 'T1CE', 'T2']
 
-    n_rows = 2 if (mask is not None and prediction is not None) else 1
+    # Determine number of rows
+    if mask is not None and prediction is not None:
+        n_rows = 3  # Original, Ground Truth, Prediction
+    elif mask is not None or prediction is not None:
+        n_rows = 2  # Original + one overlay
+    else:
+        n_rows = 1  # Only original
+
     fig, axes = plt.subplots(n_rows, 4, figsize=(16, 4*n_rows))
 
     if n_rows == 1:
         axes = axes.reshape(1, -1)
 
-    # Show modalities with ground truth overlay
+    # Row 1: Show original modalities without overlay
+    for i in range(4):
+        axes[0, i].imshow(image[i], cmap='gray')
+        axes[0, i].set_title(f'{modality_names[i]}', fontsize=10)
+        axes[0, i].axis('off')
+
+    current_row = 1
+
+    # Row 2: Show modalities with ground truth overlay
     if mask is not None:
         for i in range(4):
-            axes[0, i].imshow(image[i], cmap='gray')
+            axes[current_row, i].imshow(image[i], cmap='gray')
             # Overlay mask (only non-background)
             mask_overlay = np.ma.masked_where(mask == 0, mask)
-            axes[0, i].imshow(mask_overlay, cmap='jet',
-                              alpha=alpha, vmin=0, vmax=3)
-            axes[0, i].set_title(
+            axes[current_row, i].imshow(mask_overlay, cmap='jet',
+                                        alpha=alpha, vmin=0, vmax=3)
+            axes[current_row, i].set_title(
                 f'{modality_names[i]} + Ground Truth', fontsize=10)
-            axes[0, i].axis('off')
-    else:
-        for i in range(4):
-            axes[0, i].imshow(image[i], cmap='gray')
-            axes[0, i].set_title(modality_names[i], fontsize=10)
-            axes[0, i].axis('off')
+            axes[current_row, i].axis('off')
+        current_row += 1
 
-    # Show modalities with prediction overlay
-    if prediction is not None and n_rows == 2:
+    # Row 3: Show modalities with prediction overlay
+    if prediction is not None:
         for i in range(4):
-            axes[1, i].imshow(image[i], cmap='gray')
+            axes[current_row, i].imshow(image[i], cmap='gray')
             # Overlay prediction (only non-background)
             pred_overlay = np.ma.masked_where(prediction == 0, prediction)
-            axes[1, i].imshow(pred_overlay, cmap='jet',
-                              alpha=alpha, vmin=0, vmax=3)
-            axes[1, i].set_title(
+            axes[current_row, i].imshow(pred_overlay, cmap='jet',
+                                        alpha=alpha, vmin=0, vmax=3)
+            axes[current_row, i].set_title(
                 f'{modality_names[i]} + Prediction', fontsize=10)
-            axes[1, i].axis('off')
+            axes[current_row, i].axis('off')
 
     # Add legend
     legend_elements = [
-        Patch(facecolor='cyan', label='NCR/NET'),
-        Patch(facecolor='yellow', label='Edema'),
-        Patch(facecolor='red', label='Enhancing')
+        Patch(facecolor='cyan', label='NCR/NET (1)'),
+        Patch(facecolor='yellow', label='Edema (2)'),
+        Patch(facecolor='red', label='Enhancing (3)')
     ]
-    fig.legend(handles=legend_elements, loc='upper center',
-               bbox_to_anchor=(0.5, 0.01), ncol=3, fontsize=10)
+    fig.legend(handles=legend_elements, loc='lower center',
+               bbox_to_anchor=(0.5, -0.01), ncol=3, fontsize=10)
 
     plt.tight_layout()
 
@@ -401,3 +411,64 @@ def history_to_json(history, model_name, save_dir='logs', **kwargs):
 
     print(f"✓ Saved training history to {save_path}")
     return save_path
+
+
+def display_patient_images(path, patient_id, slice_idx):
+    patient_path = f'{path}/{patient_id}'
+
+    modalities = ['flair', 't1', 't1ce', 't2']
+    imgs = []
+
+    for mod in modalities:
+        file_path = os.path.join(patient_path, f'{patient_id}_{mod}.nii')
+        img = nib.load(file_path).get_fdata(dtype=np.float32)  # type: ignore
+        imgs.append(img)
+
+    seg_path = os.path.join(patient_path, f'{patient_id}_seg.nii')
+    seg = nib.load(seg_path).get_fdata(dtype=np.float32)  # type: ignore
+
+    fig, axes = plt.subplots(1, 5, figsize=(20, 4))
+
+    # Plot all 4 modalities
+    for i, (img, mod) in enumerate(zip(imgs, modalities)):
+        axes[i].imshow(img[:, :, slice_idx], cmap="gray")
+        axes[i].set_title(mod)
+        axes[i].axis('off')
+
+    axes[4].imshow(seg[:, :, slice_idx], cmap="jet", vmin=0, vmax=3)
+    axes[4].set_title("Segmentation")
+
+    # add legend for segmentation colors
+    legend_patches = [
+        Patch(color='cyan', label='NCR/NET (1)'),
+        Patch(color='yellow', label='ED (2)'),
+        Patch(color='red', label='ET (3)'),
+    ]
+    fig.legend(handles=legend_patches, loc='lower center',
+               bbox_to_anchor=(0.5, -0.01), ncol=3, fontsize=10)
+
+    plt.suptitle(
+        f'Display data of patient {patient_id.split("_")[-1]} of slice {slice_idx}')
+    plt.tight_layout()
+    plt.show()
+
+
+def patient_information(path, patient_id, mod='seg', slice_idx=77, fixed_column_idx=120):
+    """
+    Print out data shape and one data column for fixed column and slice. 
+
+    Args:
+        path: Dictionary containing training history
+        patient_id: ID of the patient to display (e.g., 'BraTS20_Training_001')
+        mod: Modality to load (e.g., 'seg' for segmentation)
+        slice_idx: Index of the slice to display
+        fixed_column_idx: Fixed column index to display data for
+    """
+    patient_path = os.path.join(path, patient_id)
+
+    file_path = os.path.join(patient_path, f'{patient_id}_{mod}.nii')
+    file_data = nib.load(file_path).get_fdata(dtype=np.float32)
+
+    print(f"Data shape: {file_data.shape}")
+    print(
+        f"Data for fixed column and slice: \n{file_data[:, fixed_column_idx, slice_idx]}")

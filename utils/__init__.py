@@ -12,11 +12,14 @@ from .visualizations import (
     visualize_sample_with_overlay,
     plot_detailed_training_history,
     history_to_json,
+    display_patient_images,
+    patient_information,
 )
 from .losses import (
     DiceLoss,
     CombinedLoss,
 )
+from .hpc import load_dataset_into_ram, running_on_hpc
 
 __all__ = [
     # Models
@@ -41,6 +44,8 @@ __all__ = [
     'visualize_sample_with_overlay',
     'plot_detailed_training_history',
     'history_to_json',
+    'display_patient_images',
+    'patient_information',
     # Losses
     'DiceLoss',
     'CombinedLoss'
