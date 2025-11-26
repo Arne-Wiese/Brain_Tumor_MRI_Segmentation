@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 import json
+import nibabel as nib
 
 
 def visualize_predictions(model, dataloader, device, num_samples=3, save_path=None):
@@ -410,3 +411,64 @@ def history_to_json(history, model_name, save_dir='logs', **kwargs):
 
     print(f"✓ Saved training history to {save_path}")
     return save_path
+
+
+def display_patient_images(path, patient_id, slice_idx):
+    patient_path = f'{path}/{patient_id}'
+
+    modalities = ['flair', 't1', 't1ce', 't2']
+    imgs = []
+
+    for mod in modalities:
+        file_path = os.path.join(patient_path, f'{patient_id}_{mod}.nii')
+        img = nib.load(file_path).get_fdata(dtype=np.float32)  # type: ignore
+        imgs.append(img)
+
+    seg_path = os.path.join(patient_path, f'{patient_id}_seg.nii')
+    seg = nib.load(seg_path).get_fdata(dtype=np.float32)  # type: ignore
+
+    fig, axes = plt.subplots(1, 5, figsize=(20, 4))
+
+    # Plot all 4 modalities
+    for i, (img, mod) in enumerate(zip(imgs, modalities)):
+        axes[i].imshow(img[:, :, slice_idx], cmap="gray")
+        axes[i].set_title(mod)
+        axes[i].axis('off')
+
+    axes[4].imshow(seg[:, :, slice_idx], cmap="jet", vmin=0, vmax=3)
+    axes[4].set_title("Segmentation")
+
+    # add legend for segmentation colors
+    legend_patches = [
+        Patch(color='cyan', label='NCR/NET (1)'),
+        Patch(color='yellow', label='ED (2)'),
+        Patch(color='red', label='ET (3)'),
+    ]
+    fig.legend(handles=legend_patches, loc='lower center',
+               bbox_to_anchor=(0.5, -0.01), ncol=3, fontsize=10)
+
+    plt.suptitle(
+        f"Display data of patient {patient_id.split("_")[-1]} of slice {slice_idx}")
+    plt.tight_layout()
+    plt.show()
+
+
+def patient_information(path, patient_id, mod='seg', slice_idx=77, fixed_column_idx=120):
+    """
+    Print out data shape and one data column for fixed column and slice. 
+
+    Args:
+        path: Dictionary containing training history
+        patient_id: ID of the patient to display (e.g., 'BraTS20_Training_001')
+        mod: Modality to load (e.g., 'seg' for segmentation)
+        slice_idx: Index of the slice to display
+        fixed_column_idx: Fixed column index to display data for
+    """
+    patient_path = os.path.join(path, patient_id)
+
+    file_path = os.path.join(patient_path, f'{patient_id}_{mod}.nii')
+    file_data = nib.load(file_path).get_fdata(dtype=np.float32)
+
+    print(f"Data shape: {file_data.shape}")
+    print(
+        f"Data for fixed column and slice: \n{file_data[:, fixed_column_idx, slice_idx]}")
