@@ -1,40 +1,72 @@
 {
     "train_loss": [
-        1.027894
+        0.521385,
+        0.303562,
+        0.120193,
+        0.106651,
+        0.101474
     ],
     "val_loss": [
-        1.062648
+        0.397097,
+        0.151991,
+        0.123478,
+        0.120925,
+        0.112295
     ],
     "train_dice": [
-        0.352844
+        0.698033,
+        0.806909,
+        0.811448,
+        0.82687,
+        0.835872
     ],
     "val_dice": [
-        0.27558
+        0.65824,
+        0.774576,
+        0.790207,
+        0.793865,
+        0.796875
     ],
     "train_iou": [
-        0.288331
+        0.591898,
+        0.701437,
+        0.707423,
+        0.72684,
+        0.738544
     ],
     "val_iou": [
-        0.271204
+        0.606359,
+        0.729181,
+        0.74273,
+        0.74731,
+        0.75012
     ],
     "epoch_train_times": [
-        117.402773
+        11501.964542,
+        10480.215307,
+        11370.247951,
+        11074.553409,
+        11962.142269
     ],
     "learning_rates": [
+        0.0001,
+        0.0001,
+        0.0001,
+        0.0001,
         0.0001
     ],
     "summary": {
-        "total_epochs": 1,
-        "total_training_time_seconds": 117.4,
-        "total_training_time_minutes": 1.96,
-        "average_epoch_time_seconds": 117.4,
-        "best_train_loss": 1.0279,
-        "best_val_loss": 1.0626,
+        "total_epochs": 5,
+        "total_training_time_seconds": 56389.12,
+        "total_training_time_minutes": 939.82,
+        "average_epoch_time_seconds": 11277.82,
+        "best_train_loss": 0.1015,
+        "best_val_loss": 0.1123,
         "initial_learning_rate": 0.0001,
         "final_learning_rate": 0.0001,
         "min_learning_rate": 0.0001,
-        "best_val_dice": 0.2756,
-        "best_val_iou": 0.2712
+        "best_val_dice": 0.7969,
+        "best_val_iou": 0.7501
     },
     "config": {
         "batch_size": 16,
@@ -43,10 +75,14 @@
             22,
             122
         ],
-        "num_epochs": 1,
+        "num_epochs": 5,
         "optimizer": "Adam",
         "loss_function": "CombinedLoss",
         "model_type": "UNet",
-        "dataset_type": "2D"
+        "model_parameters": 31044292,
+        "dataset_type": "2.5D",
+        "early_stopping_patience": 10,
+        "augmentations": false,
+        "device": "mps"
     }
 }
