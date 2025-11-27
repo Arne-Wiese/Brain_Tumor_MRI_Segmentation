@@ -29,12 +29,16 @@ class BraTSDataset_25D(Dataset):
         self.n_slices = n_slices
         self.half_slices = n_slices // 2
         self.samples = []  # Will store (patient_id, slice_index) pairs
+        self.patient_ids = []  # Store patient IDs for each sample
+        self.slice_indices = []  # Store slice indices for each sample
 
         # For each patient, identify which slices contain tumor
         for patient_id in patient_list:
             # Only include slices within our range that have enough context slices
             for slice_idx in range(slice_range[0], slice_range[1]):
                 self.samples.append((patient_id, slice_idx))
+                self.patient_ids.append(patient_id)
+                self.slice_indices.append(slice_idx)
 
     def __len__(self):
         """Return total number of samples (2D slices)"""
