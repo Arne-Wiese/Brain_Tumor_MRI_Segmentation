@@ -6,7 +6,36 @@ import torch
 from tqdm import tqdm
 import numpy as np
 import time
+from datetime import datetime
+import json
+import os
+import utils
 
+from utils.metrics import (
+    dice_score,
+    dice_score_background,
+    dice_score_necrotic,
+    dice_score_edema,
+    dice_score_enhancing,
+    iou_score,
+    iou_score_background,
+    iou_score_necrotic,
+    iou_score_edema,
+    iou_score_enhancing
+)
+
+metric_fns = {
+    'dice': dice_score,
+    'dice_background': dice_score_background,
+    'dice_necrotic': dice_score_necrotic,
+    'dice_edema': dice_score_edema,
+    'dice_enhancing': dice_score_enhancing,
+    'iou': iou_score,
+    'iou_background': iou_score_background,
+    'iou_necrotic': iou_score_necrotic,
+    'iou_edema': iou_score_edema,
+    'iou_enhancing': iou_score_enhancing
+}
 
 def train_one_epoch(model, dataloader, criterion, optimizer, device, metric_fns=None):
     """
@@ -106,11 +135,20 @@ def validate(model, dataloader, criterion, device, metric_fns=None):
 
     return epoch_loss, epoch_metrics
 
+def save_history(history, save_dir, today=None):
+    if today is None:
+        today = datetime.now().strftime("%Y%m%d_%H%M%S")
+    history_file = f'{save_dir}/{today}_training_history.json'
+
+    os.makedirs(save_dir, exist_ok=True)
+
+    with open(history_file, 'w') as f:
+        json.dump(history, f, indent=4)
 
 def train_loop(model, train_loader, val_loader, criterion, optimizer,
-               num_epochs, device, scheduler=None, metric_fns=None,
+               num_epochs, device, scheduler=None,
                save_best_model=True, model_save_path='best_model.pth',
-               early_stopping_patience=None, primary_metric=None):
+               early_stopping_patience=None, primary_metric=None, save_history_fn=lambda x: None):
     """
     Generic training loop with validation.
 
@@ -138,102 +176,114 @@ def train_loop(model, train_loader, val_loader, criterion, optimizer,
     """
     # Initialize history with loss and all metrics
     history = {'train_loss': [], 'val_loss': [],
-               'epoch_train_times': [], 'learning_rates': []}
+            'epoch_train_times': [], 'learning_rates': []}
     if metric_fns is not None:
         for name in metric_fns.keys():
             history[f'train_{name}'] = []
             history[f'val_{name}'] = []
 
-    # Determine primary metric for model selection
-    if metric_fns is not None:
-        if primary_metric is None:
-            primary_metric = list(metric_fns.keys())[0]
-        best_val_metric = 0.0 if metric_fns else float('inf')
-    else:
-        primary_metric = None
-        best_val_metric = float('inf')
+    try:
 
-    best_val_loss = float('inf')
-    epochs_without_improvement = 0
+        # Determine primary metric for model selection
+        if metric_fns is not None:
+            if primary_metric is None:
+                primary_metric = list(metric_fns.keys())[0]
+            best_val_metric = 0.0 if metric_fns else float('inf')
+        else:
+            primary_metric = None
+            best_val_metric = float('inf')
 
-    for epoch in range(num_epochs):
-        # Get current learning rate
-        current_lr = optimizer.param_groups[0]['lr']
-        history['learning_rates'].append(current_lr)
+        best_val_loss = float('inf')
+        epochs_without_improvement = 0
 
-        print(f"Epoch {epoch + 1}/{num_epochs}")
+        for epoch in range(num_epochs):
+            # Get current learning rate
+            current_lr = optimizer.param_groups[0]['lr']
+            history['learning_rates'].append(current_lr)
 
-        # start time measurement
-        epoch_start_time = time.time()
-        # Training
-        train_loss, train_metrics = train_one_epoch(
-            model, train_loader, criterion, optimizer, device, metric_fns
-        )
+            print(f"Epoch {epoch + 1}/{num_epochs}")
 
-        # Validation
-        val_loss, val_metrics = validate(
-            model, val_loader, criterion, device, metric_fns
-        )
-        epoch_time = time.time() - epoch_start_time
-        history['epoch_train_times'].append(epoch_time)
+            # start time measurement
+            epoch_start_time = time.time()
+            # Training
+            train_loss, train_metrics = train_one_epoch(
+                model, train_loader, criterion, optimizer, device, metric_fns
+            )
 
-        # Store metrics
-        history['train_loss'].append(train_loss)
-        history['val_loss'].append(val_loss)
-        if train_metrics is not None:
-            for name, value in train_metrics.items():
-                history[f'train_{name}'].append(value)
-        if val_metrics is not None:
-            for name, value in val_metrics.items():
-                history[f'val_{name}'].append(value)
+            # Validation
+            val_loss, val_metrics = validate(
+                model, val_loader, criterion, device, metric_fns
+            )
 
-        print(f"  Epoch Time: {epoch_time:.2f}s")
+            epoch_time = time.time() - epoch_start_time
+            history['epoch_train_times'].append(epoch_time)
 
-        # Learning rate scheduling
-        if scheduler is not None:
-            if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
-                scheduler.step(val_loss)
-            else:
-                scheduler.step()
+            # Store metrics
+            history['train_loss'].append(train_loss)
+            history['val_loss'].append(val_loss)
+            if train_metrics is not None:
+                for name, value in train_metrics.items():
+                    history[f'train_{name}'].append(value)
+            if val_metrics is not None:
+                for name, value in val_metrics.items():
+                    history[f'val_{name}'].append(value)
 
-        # Save best model
-        if save_best_model:
-            # Use primary metric if available, otherwise use loss
-            if primary_metric is not None and val_metrics is not None:
-                current_val_metric = val_metrics[primary_metric]
-                improved = current_val_metric > best_val_metric
+            print(f"  Epoch Time: {epoch_time:.2f}s")
+
+            print(f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} | Epoch time: {epoch_time:.2f}s")
+            print(f"Train Dice: {train_metrics['dice']:.4f} | Val Dice: {val_metrics['dice']:.4f}")
+            print(f"Train IoU: {train_metrics['iou']:.4f} | Val IoU: {val_metrics['iou']:.4f}")
+
+
+            # Learning rate scheduling
+            if scheduler is not None:
+                if isinstance(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+                    scheduler.step(val_loss)
+                else:
+                    scheduler.step()
+
+            # Save best model
+            if save_best_model:
+                # Use primary metric if available, otherwise use loss
+                if primary_metric is not None and val_metrics is not None:
+                    current_val_metric = val_metrics[primary_metric]
+                    improved = current_val_metric > best_val_metric
+                    if improved:
+                        best_val_metric = current_val_metric
+                else:
+                    improved = val_loss < best_val_loss
+                    current_val_metric = None
+
                 if improved:
-                    best_val_metric = current_val_metric
-            else:
-                improved = val_loss < best_val_loss
-                current_val_metric = None
+                    best_val_loss = val_loss
 
-            if improved:
-                best_val_loss = val_loss
+                if improved:
+                    # Save checkpoint with all metrics
+                    checkpoint = {
+                        'epoch': epoch,
+                        'model_state_dict': model.state_dict(),
+                        'optimizer_state_dict': optimizer.state_dict(),
+                        'val_loss': val_loss,
+                        'learning_rate': current_lr,
+                    }
+                    if val_metrics is not None:
+                        for name, value in val_metrics.items():
+                            checkpoint[f'val_{name}'] = value
 
-            if improved:
-                # Save checkpoint with all metrics
-                checkpoint = {
-                    'epoch': epoch,
-                    'model_state_dict': model.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                    'val_loss': val_loss,
-                    'learning_rate': current_lr,
-                }
-                if val_metrics is not None:
-                    for name, value in val_metrics.items():
-                        checkpoint[f'val_{name}'] = value
+                    torch.save(checkpoint, model_save_path)
 
-                torch.save(checkpoint, model_save_path)
+                    epochs_without_improvement = 0
+                else:
+                    epochs_without_improvement += 1
 
-                epochs_without_improvement = 0
-            else:
-                epochs_without_improvement += 1
+            # Early stopping
+            if early_stopping_patience is not None:
+                if epochs_without_improvement >= early_stopping_patience:
+                    break
 
-        # Early stopping
-        if early_stopping_patience is not None:
-            if epochs_without_improvement >= early_stopping_patience:
-                break
+            save_history_fn(history)
+    finally:
+        save_history_fn(history)
 
     return history
 

@@ -409,7 +409,6 @@ def history_to_json(history, model_name, save_dir='logs', **kwargs):
     with open(save_path, 'w') as f:
         json.dump(json_history, f, indent=4)
 
-    print(f"✓ Saved training history to {save_path}")
     return save_path
 
 
