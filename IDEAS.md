@@ -1,3 +1,0 @@
-- Add Exploratory Data Analysis (EDA) in main file first
-- Visualize what does the model learn. Which type of tumor is learned from what channel for example
-- Maybe add gifs to the data analysis
