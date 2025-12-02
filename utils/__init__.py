@@ -21,6 +21,10 @@ from .losses import (
 )
 from .hpc import load_dataset_into_ram, running_on_hpc
 
+from data import load_dataset, load_patients, split_patients
+
+from extra import get_device
+
 __all__ = [
     # Models
     'UNet',
@@ -48,5 +52,8 @@ __all__ = [
     'patient_information',
     # Losses
     'DiceLoss',
-    'CombinedLoss'
+    'CombinedLoss',
+    'load_dataset', 
+    'load_patients', 
+    'split_patients',
 ]
