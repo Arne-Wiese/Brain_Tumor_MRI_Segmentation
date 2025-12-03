@@ -1,0 +1,28 @@
+{
+    "train_loss": [],
+    "val_loss": [],
+    "epoch_train_times": [],
+    "learning_rates": [
+        0.0001
+    ],
+    "train_dice": [],
+    "val_dice": [],
+    "train_dice_background": [],
+    "val_dice_background": [],
+    "train_dice_necrotic": [],
+    "val_dice_necrotic": [],
+    "train_dice_edema": [],
+    "val_dice_edema": [],
+    "train_dice_enhancing": [],
+    "val_dice_enhancing": [],
+    "train_iou": [],
+    "val_iou": [],
+    "train_iou_background": [],
+    "val_iou_background": [],
+    "train_iou_necrotic": [],
+    "val_iou_necrotic": [],
+    "train_iou_edema": [],
+    "val_iou_edema": [],
+    "train_iou_enhancing": [],
+    "val_iou_enhancing": []
+}

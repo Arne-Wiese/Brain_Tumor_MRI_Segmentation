@@ -103,7 +103,7 @@ class UNet(nn.Module):
         return logits
 
 
-class DoubleConv(nn.Module):
+class DoubleConv3D(nn.Module):
     def __init__(self, in_ch, out_ch):
         super().__init__()
         self.conv = nn.Sequential(
@@ -121,23 +121,23 @@ class DoubleConv(nn.Module):
 class UNet3D(nn.Module):
     def __init__(self, in_channels=4, out_channels=4):
         super().__init__()
-        self.enc1 = DoubleConv(in_channels, 32)
-        self.enc2 = DoubleConv(32, 64)
-        self.enc3 = DoubleConv(64, 128)
-        self.enc4 = DoubleConv(128, 256)
+        self.enc1 = DoubleConv3D(in_channels, 32)
+        self.enc2 = DoubleConv3D(32, 64)
+        self.enc3 = DoubleConv3D(64, 128)
+        self.enc4 = DoubleConv3D(128, 256)
 
         self.pool = nn.MaxPool3d(2)
 
-        self.bottleneck = DoubleConv(256, 512)
+        self.bottleneck = DoubleConv3D(256, 512)
 
         self.up4 = nn.ConvTranspose3d(512, 256, 2, stride=2)
-        self.dec4 = DoubleConv(512, 256)
+        self.dec4 = DoubleConv3D(512, 256)
         self.up3 = nn.ConvTranspose3d(256, 128, 2, stride=2)
-        self.dec3 = DoubleConv(256, 128)
+        self.dec3 = DoubleConv3D(256, 128)
         self.up2 = nn.ConvTranspose3d(128, 64, 2, stride=2)
-        self.dec2 = DoubleConv(128, 64)
+        self.dec2 = DoubleConv3D(128, 64)
         self.up1 = nn.ConvTranspose3d(64, 32, 2, stride=2)
-        self.dec1 = DoubleConv(64, 32)
+        self.dec1 = DoubleConv3D(64, 32)
 
         self.out_conv = nn.Conv3d(32, out_channels, 1)
 
