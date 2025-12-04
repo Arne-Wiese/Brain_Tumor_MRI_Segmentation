@@ -9,6 +9,7 @@ from . import training
 from . import visualizations
 from . import losses
 from . import hpc
+from . import grad_cam
 
 __all__ = [
     "models",
@@ -18,6 +19,7 @@ __all__ = [
     "visualizations",
     "losses",
     "hpc",
+    "grad_cam"
 ]
 
 # from .models import UNet, DoubleConv, Down, Up
@@ -71,7 +73,7 @@ __all__ = [
 #     # Losses
 #     'DiceLoss',
 #     'CombinedLoss',
-#     'load_dataset', 
-#     'load_patients', 
+#     'load_dataset',
+#     'load_patients',
 #     'split_patients',
 # ]

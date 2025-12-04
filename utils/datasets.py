@@ -122,12 +122,16 @@ class BraTSDataset_2D(Dataset):
         self.data_dir = data_dir
         self.slice_range = slice_range
         self.samples = []  # Will store (patient_id, slice_index) pairs
+        self.patient_ids = []  # Store patient IDs for each sample
+        self.slice_indices = []  # Store slice indices for each sample
 
         # For each patient, identify which slices contain tumor
         for patient_id in patient_list:
             # Only include slices within our range that have enough context slices
             for slice_idx in range(slice_range[0], slice_range[1]):
                 self.samples.append((patient_id, slice_idx))
+                self.patient_ids.append(patient_id)
+                self.slice_indices.append(slice_idx)
 
     def __len__(self):
         """Return total number of samples (2D slices)"""
@@ -186,7 +190,9 @@ class BraTSDataset_2D(Dataset):
         else:
             return slice_2d
 
+
 MODALITIES = ["flair", "t1", "t1ce", "t2"]
+
 
 def pad_to_multiple(tensor, multiple=16):
     if tensor.dim() == 3:
@@ -202,6 +208,7 @@ def pad_to_multiple(tensor, multiple=16):
     # F.pad pads in order: (W_left, W_right, H_top, H_bottom, D_front, D_back)
     return F.pad(tensor, (0, pad_w, 0, pad_h, 0, pad_d))
 
+
 def load_patient(patient_id, data_dir):
     """Load all modalities and segmentation for one patient"""
     patient_path = os.path.join(data_dir, patient_id)
@@ -210,25 +217,28 @@ def load_patient(patient_id, data_dir):
     image_arrays = []
     for mod in modalities:
         file_path = os.path.join(patient_path, f"{patient_id}_{mod}.nii")
-        img = nib.load(file_path).get_fdata(dtype=np.float32)
+        img = nib.load(file_path).get_fdata(dtype=np.float32)  # type: ignore
         image_arrays.append(img)
 
     seg_path = os.path.join(patient_path, f"{patient_id}_seg.nii")
-    seg = nib.load(seg_path).get_fdata(dtype=np.float32)
+    seg = nib.load(seg_path).get_fdata(dtype=np.float32)  # type: ignore
 
     # Stack modalities -> shape (4, D, H, W)
     image = np.stack(image_arrays, axis=0)
     # removed line to get shape (D, H, W)
     # seg = np.expand_dims(seg, axis=0)  # shape (1, D, H, W)
 
-    seg[seg==4] = 3 # remap label 4 to 3 to preserve continuity (there is no label 3 in the data)
+    # remap label 4 to 3 to preserve continuity (there is no label 3 in the data)
+    seg[seg == 4] = 3
 
     return image, seg
 
+
 def cleanup_item(image, seg, transform=None):
     # Normalize each modality to [0, 1]
-    image = (image - image.min(axis=(1,2,3), keepdims=True)) / (
-        image.max(axis=(1,2,3), keepdims=True) - image.min(axis=(1,2,3), keepdims=True) + 1e-8
+    image = (image - image.min(axis=(1, 2, 3), keepdims=True)) / (
+        image.max(axis=(1, 2, 3), keepdims=True) -
+        image.min(axis=(1, 2, 3), keepdims=True) + 1e-8
     )
 
     # Apply transform if any
@@ -245,10 +255,11 @@ def cleanup_item(image, seg, transform=None):
 
     return image, seg
 
+
 class BraTSDataset3D(Dataset):
     """
     PyTorch Dataset for BraTS 2020 Brain Tumor Segmentation (2D U-Net)
-    
+
     Design Decisions:
     1. Filter empty slices: Only keep slices with tumor pixels (labels 1,2,4)
     2. Label remapping: {0,1,2,4} → {0,1,2,3} for PyTorch compatibility
@@ -256,7 +267,7 @@ class BraTSDataset3D(Dataset):
     4. Input: 4-channel (T1, T1ce, T2, FLAIR) x 240x240 full slices
     5. Patient-level split: Prevent data leakage
     """
-        
+
     def __init__(self, data_dir, patient_ids=None, transform=None, in_memory=False):
         """
         Args:
@@ -274,16 +285,17 @@ class BraTSDataset3D(Dataset):
         self.in_memory = in_memory
         if in_memory:
             print("Preloading all patient data into memory...")
-            self.cache = {pid: self._load_patient(pid) for pid in self.patient_ids}
+            self.cache = {pid: self._load_patient(
+                pid) for pid in self.patient_ids}
         else:
-            self.cache = {}        
+            self.cache = {}
 
     def _load_patient(self, patient_id):
         return load_patient(patient_id, self.data_dir)
-    
+
     def __len__(self):
         return len(self.patient_ids)
-    
+
     def __getitem__(self, idx):
         pid = self.patient_ids[idx]
         if pid in self.cache:
@@ -292,26 +304,26 @@ class BraTSDataset3D(Dataset):
             image, seg = self._load_patient(pid)
 
         return cleanup_item(image, seg, self.transform)
-    
+
     def _convert_labels(self, mask):
         """
         Remap labels from {0,1,2,4} to {0,1,2,3}
-        
+
         Original BraTS labels:
             0 = Background
             1 = Necrotic/Non-enhancing tumor
             2 = Edema
             4 = Enhancing tumor
-        
+
         Remapped labels (for PyTorch):
             0 = Background
             1 = Necrotic/Non-enhancing tumor
             2 = Edema
             3 = Enhancing tumor
-        
+
         Args:
             mask (np.ndarray): Segmentation mask with original labels
-        
+
         Returns:
             np.ndarray: Mask with remapped labels
         """

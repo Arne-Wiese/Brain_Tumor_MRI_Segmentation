@@ -49,7 +49,7 @@ def visualize_predictions(model, dataloader, device, num_samples=3, save_path=No
     predictions = predictions.cpu().numpy()
 
     # Plot
-    fig, axes = plt.subplots(num_samples, 5, figsize=(20, 4*num_samples))
+    fig, axes = plt.subplots(num_samples, 6, figsize=(20, 4*num_samples))
 
     # Handle case when num_samples = 1
     if num_samples == 1:
@@ -71,15 +71,20 @@ def visualize_predictions(model, dataloader, device, num_samples=3, save_path=No
         axes[i, 2].set_title('T1CE')
         axes[i, 2].axis('off')
 
-        # Show ground truth mask
-        axes[i, 3].imshow(masks[i], cmap='jet', vmin=0, vmax=3)
-        axes[i, 3].set_title('Ground Truth')
+        # Show T1CE modality
+        axes[i, 3].imshow(images[i, 3], cmap='gray')
+        axes[i, 3].set_title('T2')
         axes[i, 3].axis('off')
 
-        # Show prediction
-        axes[i, 4].imshow(predictions[i], cmap='jet', vmin=0, vmax=3)
-        axes[i, 4].set_title('Prediction')
+        # Show ground truth mask
+        axes[i, 4].imshow(masks[i], cmap='jet', vmin=0, vmax=3)
+        axes[i, 4].set_title('Ground Truth')
         axes[i, 4].axis('off')
+
+        # Show prediction
+        axes[i, 5].imshow(predictions[i], cmap='jet', vmin=0, vmax=3)
+        axes[i, 5].set_title('Prediction')
+        axes[i, 5].axis('off')
 
      # Add legend with correct tab10 colors
     legend_elements = [
@@ -466,7 +471,7 @@ def patient_information(path, patient_id, mod='seg', slice_idx=77, fixed_column_
     patient_path = os.path.join(path, patient_id)
 
     file_path = os.path.join(patient_path, f'{patient_id}_{mod}.nii')
-    file_data = nib.load(file_path).get_fdata(dtype=np.float32)
+    file_data = nib.load(file_path).get_fdata(dtype=np.float32)  # type: ignore
 
     print(f"Data shape: {file_data.shape}")
     print(
