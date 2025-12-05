@@ -271,7 +271,7 @@ def visualize_best_worst_gradcam(model, dataloader, device, layer_name, save_pat
         ).squeeze().numpy()
 
         axes[1, i].imshow(sample['image'][input_channel], cmap='gray')
-        axes[1, i].imshow(cam_resized, cmap='jet', alpha=0.5)
+        axes[1, i].imshow(cam_resized, cmap='jet', alpha=0.3)
         if i == 0:
             axes[1, i].set_ylabel(
                 cam_title, fontsize=12, rotation=0, ha='right', va='center', labelpad=20)

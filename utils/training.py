@@ -37,6 +37,7 @@ metric_fns = {
     'iou_enhancing': iou_score_enhancing
 }
 
+
 def train_one_epoch(model, dataloader, criterion, optimizer, device, metric_fns=None):
     """
     Train the model for one epoch.
@@ -135,6 +136,7 @@ def validate(model, dataloader, criterion, device, metric_fns=None):
 
     return epoch_loss, epoch_metrics
 
+
 def save_history(history, save_dir, today=None):
     if today is None:
         today = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -145,8 +147,9 @@ def save_history(history, save_dir, today=None):
     with open(history_file, 'w') as f:
         json.dump(history, f, indent=4)
 
+
 def train_loop(model, train_loader, val_loader, criterion, optimizer,
-               num_epochs, device, scheduler=None,
+               num_epochs, device, metric_fns=None, scheduler=None,
                save_best_model=True, model_save_path='best_model.pth',
                early_stopping_patience=None, primary_metric=None, save_history_fn=lambda x: None):
     """
@@ -176,7 +179,7 @@ def train_loop(model, train_loader, val_loader, criterion, optimizer,
     """
     # Initialize history with loss and all metrics
     history = {'train_loss': [], 'val_loss': [],
-            'epoch_train_times': [], 'learning_rates': []}
+               'epoch_train_times': [], 'learning_rates': []}
     if metric_fns is not None:
         for name in metric_fns.keys():
             history[f'train_{name}'] = []
@@ -230,10 +233,12 @@ def train_loop(model, train_loader, val_loader, criterion, optimizer,
 
             print(f"  Epoch Time: {epoch_time:.2f}s")
 
-            print(f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} | Epoch time: {epoch_time:.2f}s")
-            print(f"Train Dice: {train_metrics['dice']:.4f} | Val Dice: {val_metrics['dice']:.4f}")
-            print(f"Train IoU: {train_metrics['iou']:.4f} | Val IoU: {val_metrics['iou']:.4f}")
-
+            print(
+                f"Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} | Epoch time: {epoch_time:.2f}s")
+            print(
+                f"Train Dice: {train_metrics['dice']:.4f} | Val Dice: {val_metrics['dice']:.4f}")
+            print(
+                f"Train IoU: {train_metrics['iou']:.4f} | Val IoU: {val_metrics['iou']:.4f}")
 
             # Learning rate scheduling
             if scheduler is not None:
